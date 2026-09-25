@@ -1,0 +1,2 @@
+# PlaynitePlugins
+Plugins for playnite
