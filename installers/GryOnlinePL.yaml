@@ -1,0 +1,8 @@
+AddonId: GryOnlineMetadata_7b963b1a-21e9-4a3b-a18c-49c74cf8d652
+Packages:
+  - Version: 1.2.5
+    RequiredApiVersion: 6.17.0
+    ReleaseDate: 2026-09-25
+    PackageUrl: https://github.com/VViktorr/PlaynitePlugins/releases/download/gryonlinepl-v1.2.5/GryOnlineMetadata_7b963b1a-21e9-4a3b-a18c-49c74cf8d652_1_2_5.pext
+    Changelog:
+      - Initial public release.
