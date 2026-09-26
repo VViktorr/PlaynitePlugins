@@ -4,8 +4,8 @@ Dwie niezależne wtyczki źródeł metadanych do [Playnite](https://playnite.lin
 
 | Wtyczka | Wersja | Co robi |
 | --- | --- | --- |
-| **GryOnlinePL** | 1.2.5 | Wyszukuje grę w encyklopedii GRYOnline.pl i pobiera polski tytuł, opis, datę wydania, oceny, serię i inne metadane. Opcjonalnie pobiera plakat, tło oraz ikonę ze SteamGridDB. |
-| **SteamGridDB Gallery** | 1.9.0 | Pokazuje galerię plakatów, teł i ikon przy ręcznej edycji gry; przy pobieraniu zbiorczym wybiera grafiki automatycznie. |
+| **GryOnlinePL** | 1.2.13 | Wyszukuje grę w encyklopedii GRYOnline.pl i pobiera polski tytuł, opis, datę wydania, oceny, serię i inne metadane. Opcjonalnie pobiera plakat, tło oraz ikonę ze SteamGridDB. |
+| **SteamGridDB Gallery** | 1.9.3 | Pokazuje galerię plakatów, teł i ikon przy ręcznej edycji gry; przy pobieraniu zbiorczym wybiera grafiki automatycznie. |
 
 ## GryOnlinePL
 

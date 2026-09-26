@@ -1,1 +1,7 @@
-
+Id: SteamGridDBGallery_893e3841-75f7-4451-9e53-b0487cb98b60
+Name: SteamGridDB Gallery
+Author: Viktor by chatgpt
+Version: 1.9.3
+Module: SteamGridDBGallery.dll
+Type: MetadataProvider
+Icon: icon.png

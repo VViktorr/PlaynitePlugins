@@ -53,3 +53,19 @@ Wersja 1.2.3 zamienia pliki ikon ICO ze SteamGridDB na PNG, wybierając najwięk
 Wersja 1.2.4 udostępnia rozmiary ikon od 16×16 do 1024×1024. Dla ICO filtr sprawdza każdą klatkę pliku, także jeśli API zwraca 0×0. Przy dokładnym rozmiarze wyodrębnia tę klatkę do PNG, a przy opcji „lub większe” wybiera największą dostępną. Dla obrazów PNG filtr działa według ich rzeczywistych wymiarów podanych przez API.
 
 Wersja 1.2.5 przyspiesza automat: plakat, tło i ikona są wyszukiwane równolegle, każda kategoria zatrzymuje przeglądanie po znalezieniu dopasowania na stronie wyników, a tę samą grę SteamGridDB sprawdza tylko raz nawet przy polskiej i angielskiej nazwie. W razie braku dopasowania bada najwyżej trzy strony dla danej kategorii. Klatki ICO są odczytywane równolegle z ograniczeniem do czterech pobrań. Wybór najwyższej punktacji dotyczy sprawdzonej strony wyników.
+
+Wersja 1.2.6 poprawia HTML opisu: przy odrzuceniu odnośnika poza GRYOnline.pl usuwa także odpowiadający mu znacznik zamykający. Zapobiega to zmianie wyglądu dalszych akapitów w widoku Playnite. Po instalacji nowej wersji ponownie pobierz opis gry, ponieważ wcześniej zapisany HTML nie zmieni się automatycznie.
+
+Wersja 1.2.7 uwzględnia różne rodzaje myślników w zapytaniu do wyszukiwarki. Dla tytułu Tomb Raider I–III Remastered, którego karta może nie pojawić się w podpowiedziach wyszukiwarki, używa potwierdzonego adresu karty gry, jeżeli nie znaleziono dokładnego dopasowania. Możesz też dodać adres `https://www.gry-online.pl/gry/tomb-raider-i-iii-remastered/z46761` do pola Linki w Playnite; wtyczka używa podanego tam adresu bez wyszukiwania.
+
+Wersja 1.2.8 wyszukuje także nazwę bez końcówki „Definitive Edition”. Dla Battlefield V Definitive Edition dopasowuje kartę Battlefield V, gdy brak osobnej karty edycji. Potwierdzone karty Battlefield V i Tomb Raider I-III Remastered pojawiają się również na liście wyboru ręcznego, nawet gdy wyszukiwarka GRYOnline.pl nie zwraca wyników. Jeśli inne tytuły nie pojawiają się w oknie ręcznym, można wpisać adres ich karty w polu Linki gry w Playnite; brak wyników dla innych gier wymaga osobnego zbadania wyszukiwarki serwisu.
+
+Wersja 1.2.9 dopasowuje „Disco Elysium - The Final Cut” do karty „Disco Elysium”, jeśli w wynikach nie ma osobnej karty edycji. Usuwa końcówkę „The Final Cut” tylko przy jednoznacznym dopasowaniu nazwy bazowej, dzięki czemu automat może wybrać tę samą kartę, która wcześniej była dostępna wyłącznie w wyborze ręcznym.
+
+Wersja 1.2.10 obsługuje starsze opisy bez nagłówków sekcji, takie jak Dragon Age: Początek. Cały artykuł (do 12 akapitów) trafia wtedy do sekcji sterowanej przełącznikiem „Fabuła”, który domyślnie jest włączony. Podpis autora i data aktualizacji są pomijane. Po aktualizacji ponownie pobierz opis gry w Playnite.
+
+Wersja 1.2.11 dodaje opcję „Autor opisu gry” w ustawieniach sekcji Opis. Gdy jest włączona i podpis autora występuje na karcie GRYOnline.pl, wtyczka dołącza na końcu opisu osobny akapit z autorem. Opcja domyślnie jest wyłączona i działa zarówno dla artykułów z nagłówkami, jak i bez nich. Nie pobiera daty ostatniej aktualizacji opisu.
+
+Wersja 1.2.12, gdy automat nie znajduje grafiki w ustawionym rozmiarze (lub większej przy odpowiedniej opcji), sprawdza do trzech stron wyników bez ograniczenia wymiarów i wybiera rozmiar najbliższy żądanemu. Dla plakatów zachowuje proporcje, dla ICO porównuje klatki i zapisuje wybraną klatkę jako PNG. Jeśli nie ma grafiki o znanych wymiarach i pozostałych warunkach, pole pozostaje puste.
+
+Wersja 1.2.13 zatrzymuje dodatkowe zapytania wyszukiwarki przy jednoznacznym dopasowaniu w automacie. Przy szukaniu grafiki o najbliższym rozmiarze ponownie używa wcześniej pobranych stron wyników oraz wymiarów klatek ICO, zamiast pobierać je drugi raz. Pobieranie ręczne zachowuje pełną listę wyników.

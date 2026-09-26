@@ -50,6 +50,7 @@ namespace GryOnlineMetadata
         public bool Combat { get; set; } = false;
         public bool PlayableCharacters { get; set; } = false;
         public bool Engine { get; set; } = false;
+        public bool DescriptionAuthor { get; set; } = false;
         public bool CoverImage { get; set; } = true;
         public string SteamGridApiKey { get; set; } = "";
         public bool SteamGridCover { get; set; } = false;
@@ -85,6 +86,7 @@ namespace GryOnlineMetadata
             Combat = other.Combat;
             PlayableCharacters = other.PlayableCharacters;
             Engine = other.Engine;
+            DescriptionAuthor = other.DescriptionAuthor;
             CoverImage = other.CoverImage;
             SteamGridApiKey = other.SteamGridApiKey;
             SteamGridCover = other.SteamGridCover;
@@ -129,6 +131,7 @@ namespace GryOnlineMetadata
             AddChoice(panel, "Walka", "Combat");
             AddChoice(panel, "Grywalne postacie", "PlayableCharacters");
             AddChoice(panel, "Silnik gry", "Engine");
+            AddChoice(panel, "Autor opisu gry", "DescriptionAuthor");
             panel.Children.Add(new TextBlock { Text = "Media", FontWeight = System.Windows.FontWeights.Bold,
                 Margin = new System.Windows.Thickness(0, 12, 0, 6) });
             panel.Children.Add(new TextBlock { Text = "SteamGridDB — klucz API:", Margin = new System.Windows.Thickness(0, 4, 0, 4) });
@@ -208,6 +211,7 @@ namespace GryOnlineMetadata
         private readonly string gameplayHtml;
         private readonly string gameModesHtml;
         private readonly string[] sectionsHtml;
+        private readonly string descriptionAuthorHtml;
         private readonly GryOnlineSettings settings;
         private readonly string pageTitle;
         private readonly string originalTitle;
@@ -223,6 +227,7 @@ namespace GryOnlineMetadata
         private string steamGridBackgroundUrl;
         private string steamGridIconUrl;
         private byte[] steamGridIconPng;
+        private bool steamGridIconFallback;
         public override List<MetadataField> AvailableFields { get; }
 
         public Provider(MetadataRequestOptions options, IPlayniteAPI api, GryOnlineSettings settings)
@@ -255,6 +260,7 @@ namespace GryOnlineMetadata
                     gameplayHtml = sections[2];
                     gameModesHtml = sections[3];
                     sectionsHtml = sections;
+                    descriptionAuthorHtml = ExtractDescriptionAuthor(html);
                     releaseDate = ExtractReleaseDate(html, input);
                     criticScore = ExtractScore(html, "GRYOnline");
                     communityScore = ExtractScore(html, "Gracze");
@@ -280,10 +286,17 @@ namespace GryOnlineMetadata
             field == MetadataField.BackgroundImage || field == MetadataField.Icon;
         private static string FindByName(string title, bool background, IPlayniteAPI api)
         {
-            var candidates = SearchCandidates(title);
+            var candidates = SearchCandidates(title, background);
             var key = MatchKey(title);
             var exact = candidates.Where(x => MatchKey(x.Key) == key).ToList();
             if (exact.Count == 1) return exact[0].Value;
+            var baseTitle = WithoutEdition(title);
+            if (exact.Count == 0 && baseTitle != null)
+            {
+                var baseKey = MatchKey(baseTitle);
+                var baseMatches = candidates.Where(x => MatchKey(x.Key) == baseKey).ToList();
+                if (baseMatches.Count == 1) return baseMatches[0].Value;
+            }
 
             if (!background && api != null)
             {
@@ -308,12 +321,16 @@ namespace GryOnlineMetadata
         private static List<GenericItemOption> ToOptions(List<KeyValuePair<string, string>> candidates)
             => candidates.Select(x => new GenericItemOption(x.Key, x.Value)).ToList();
 
-        private static List<KeyValuePair<string, string>> SearchCandidates(string title)
+        private static List<KeyValuePair<string, string>> SearchCandidates(string title, bool stopOnExact = false)
         {
             var candidates = new List<KeyValuePair<string, string>>();
             if (string.IsNullOrWhiteSpace(title)) return candidates;
             var alternate = MatchKey(title);
-            foreach (var queryText in new[] { title.Trim(), alternate }.Distinct(StringComparer.OrdinalIgnoreCase))
+            var asciiDashes = Regex.Replace(title.Trim(), "[\u2010-\u2015\u2212]", "-");
+            var baseTitle = WithoutEdition(title);
+            foreach (var queryText in new[] { title.Trim(), asciiDashes, alternate, baseTitle }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 try
                 {
@@ -332,11 +349,27 @@ namespace GryOnlineMetadata
                         if (!candidates.Any(x => string.Equals(x.Value, candidateUrl, StringComparison.OrdinalIgnoreCase)))
                             candidates.Add(new KeyValuePair<string, string>(candidate, candidateUrl));
                     }
+                    if (stopOnExact && candidates.Count(x => MatchKey(x.Key) == MatchKey(title)) == 1)
+                        break;
+                    if (stopOnExact && baseTitle != null &&
+                        candidates.Count(x => MatchKey(x.Key) == MatchKey(baseTitle)) == 1)
+                        break;
                 }
                 catch (WebException) { }
                 catch (XmlException) { }
                 catch (ArgumentException) { }
             }
+            // These verified encyclopedia cards may be absent from autocomplete.
+            // Keep them in the manual picker as well as automatic matching.
+            var lookupKey = MatchKey(WithoutEdition(title) ?? title);
+            if (lookupKey == MatchKey("Battlefield V") &&
+                !candidates.Any(x => MatchKey(x.Key) == lookupKey))
+                candidates.Add(new KeyValuePair<string, string>("Battlefield V",
+                    "https://www.gry-online.pl/gry/battlefield-v/zb5321"));
+            if (lookupKey == MatchKey("Tomb Raider I-III Remastered") &&
+                !candidates.Any(x => MatchKey(x.Key) == lookupKey))
+                candidates.Add(new KeyValuePair<string, string>("Tomb Raider I-III Remastered",
+                    "https://www.gry-online.pl/gry/tomb-raider-i-iii-remastered/z46761"));
             return candidates;
         }
         private static string MatchKey(string text)
@@ -361,7 +394,14 @@ namespace GryOnlineMetadata
             var end = html.IndexOf("id=\"konto-inline\"", description, StringComparison.OrdinalIgnoreCase);
             var block = html.Substring(description, (end < 0 ? html.Length : end) - description);
             var headings = Regex.Matches(block, @"<h2\b[^>]*>(.*?)</h2>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            if (headings.Count == 0) return result;
+            if (headings.Count == 0)
+            {
+                // Older encyclopedia entries contain one continuous article with
+                // no section headings. Use it as the story section so the default
+                // description settings still include the full article.
+                result[1] = Paragraphs(block, 12);
+                return result;
+            }
             result[0] = Paragraphs(block.Substring(0, headings[0].Index), 2);
             var slots = new int[headings.Count];
             for (var i = 0; i < headings.Count; i++)
@@ -394,10 +434,30 @@ namespace GryOnlineMetadata
             }
             return result;
         }
+        private static string ExtractDescriptionAuthor(string html)
+        {
+            var description = html.IndexOf("id=\"description\"", StringComparison.OrdinalIgnoreCase);
+            if (description < 0) return null;
+            var end = html.IndexOf("id=\"konto-inline\"", description, StringComparison.OrdinalIgnoreCase);
+            var block = html.Substring(description, (end < 0 ? html.Length : end) - description);
+            foreach (Match paragraph in Regex.Matches(block, @"<p\b[^>]*>(.*?)</p>",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline))
+            {
+                var value = WebUtility.HtmlDecode(Regex.Replace(paragraph.Groups[1].Value, "<[^>]+>", " "));
+                var author = Regex.Match(value, @"^\s*Autor opisu gry:\s*(.+?)\s*$",
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline);
+                if (author.Success && author.Groups[1].Value.Trim().Length > 0 && author.Groups[1].Value.Length <= 200)
+                    return "<p>Autor opisu gry: " + EscapeText(author.Groups[1].Value.Trim()) + "</p>";
+            }
+            return null;
+        }
         private static string Paragraphs(string html, int maximum)
         {
             var paragraphs = Regex.Matches(html, @"<p\b[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline)
-                .Cast<Match>().Select(p => SafeInline(p.Groups[1].Value))
+                .Cast<Match>()
+                .Where(p => !Regex.IsMatch(WebUtility.HtmlDecode(Regex.Replace(p.Groups[1].Value, "<[^>]+>", "")),
+                    @"^\s*(?:Autor opisu gry:|Ostatnia aktualizacja opisu:)", RegexOptions.IgnoreCase))
+                .Select(p => SafeInline(p.Groups[1].Value))
                 .Where(p => Regex.Replace(p, "<[^>]+>", "").Trim().Length > 25)
                 .Take(maximum).Select(p => "<p>" + p + "</p>");
             var content = string.Join("", paragraphs);
@@ -406,6 +466,7 @@ namespace GryOnlineMetadata
         private static string SafeInline(string html)
         {
             var result = new System.Text.StringBuilder();
+            var linkOpen = false;
             foreach (Match part in Regex.Matches(html, @"<[^>]*>|[^<]+", RegexOptions.Singleline))
             {
                 var token = part.Value;
@@ -417,7 +478,14 @@ namespace GryOnlineMetadata
                     if (name == "br") result.Append("<br>");
                     else if (name == "a")
                     {
-                        if (tag.Groups[1].Value == "/") result.Append("</a>");
+                        if (tag.Groups[1].Value == "/")
+                        {
+                            if (linkOpen)
+                            {
+                                result.Append("</a>");
+                                linkOpen = false;
+                            }
+                        }
                         else
                         {
                             var href = Regex.Match(token, "\\bhref\\s*=\\s*[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase);
@@ -426,7 +494,11 @@ namespace GryOnlineMetadata
                             if (value.StartsWith("/")) value = "https://www.gry-online.pl" + value;
                             if (Uri.TryCreate(value, UriKind.Absolute, out target) && target.Scheme == "https" &&
                                 (target.Host == "gry-online.pl" || target.Host == "www.gry-online.pl"))
+                            {
+                                if (linkOpen) result.Append("</a>");
                                 result.Append("<a href=\"").Append(EscapeText(value)).Append("\">");
+                                linkOpen = true;
+                            }
                         }
                     }
                     else result.Append(tag.Groups[1].Value == "/" ? "</" : "<")
@@ -434,6 +506,7 @@ namespace GryOnlineMetadata
                 }
                 else result.Append(EscapeText(WebUtility.HtmlDecode(token)));
             }
+            if (linkOpen) result.Append("</a>");
             return result.ToString();
         }
         private static string EscapeText(string value) => (value ?? "").Replace("&", "&amp;")
@@ -565,7 +638,8 @@ namespace GryOnlineMetadata
                 settings.RpgElements ? sectionsHtml?[5] : null,
                 settings.Combat ? sectionsHtml?[6] : null,
                 settings.PlayableCharacters ? sectionsHtml?[7] : null,
-                settings.Engine ? sectionsHtml?[8] : null
+                settings.Engine ? sectionsHtml?[8] : null,
+                settings.DescriptionAuthor ? descriptionAuthorHtml : null
             };
             var description = string.Join("", parts.Where(x => !string.IsNullOrEmpty(x)));
             return description.Length == 0 ? null : description;
@@ -619,12 +693,15 @@ namespace GryOnlineMetadata
                         BitmapCacheOption.OnLoad);
                     var frames = decoder.Frames.OrderByDescending(x => (long)x.PixelWidth * x.PixelHeight).ToList();
                     var selected = frames.FirstOrDefault();
-                    if (settings.SteamGridIconSize != "Dowolny" && !settings.SteamGridIconOrLarger)
+                    if (settings.SteamGridIconSize != "Dowolny" &&
+                        (!settings.SteamGridIconOrLarger || steamGridIconFallback))
                     {
                         var parts = settings.SteamGridIconSize.Split('x');
                         int width, height;
                         if (parts.Length == 2 && int.TryParse(parts[0], out width) && int.TryParse(parts[1], out height))
-                            selected = frames.FirstOrDefault(x => x.PixelWidth == width && x.PixelHeight == height);
+                            selected = steamGridIconFallback
+                                ? frames.OrderBy(x => SizeDistance(x.PixelWidth, x.PixelHeight, width, height)).FirstOrDefault()
+                                : frames.FirstOrDefault(x => x.PixelWidth == width && x.PixelHeight == height);
                     }
                     if (selected == null) return null;
                     var encoder = new PngBitmapEncoder();
@@ -738,7 +815,7 @@ namespace GryOnlineMetadata
         }
         private static string WithoutEdition(string name)
         {
-            var shorter = Regex.Replace(name ?? "", @"\s*(?:[:\-–]\s*)?(?:ultimate|complete|deluxe|gold|legendary)\s+edition\s*$",
+            var shorter = Regex.Replace(name ?? "", @"\s*(?:[:\-–]\s*)?(?:(?:ultimate|complete|deluxe|gold|legendary|definitive)\s+edition|the\s+final\s+cut)\s*$",
                 "", RegexOptions.IgnoreCase).Trim();
             return shorter == name ? null : shorter;
         }
@@ -770,13 +847,15 @@ namespace GryOnlineMetadata
                 var isPoster = path.StartsWith("grids/", StringComparison.Ordinal);
                 var isIcon = path.StartsWith("icons/", StringComparison.Ordinal);
                 var matching = new List<Dictionary<string, object>>();
+                var unfilteredPages = new Dictionary<int, List<Dictionary<string, object>>>();
+                var iconFrames = new ConcurrentDictionary<string, List<Tuple<int, int>>>();
                 // The API pages results before client-side filtering. Search later pages as well.
                 for (var page = 0; page < 3; page++)
                 {
                     var query = path + "?limit=50&page=" + page;
                     if (exact && !isIcon) query += "&dimensions=" + Uri.EscapeDataString(selectedSize);
                     var batch = SteamGridData(query);
-                    var framesByUrl = new ConcurrentDictionary<string, List<Tuple<int, int>>>();
+                    if (!exact || isIcon) unfilteredPages[page] = batch;
                     if (isIcon && requested != null)
                         Parallel.ForEach(batch, new ParallelOptions { MaxDegreeOfParallelism = 4 }, image =>
                         {
@@ -784,7 +863,7 @@ namespace GryOnlineMetadata
                             Uri iconAddress;
                             if (Uri.TryCreate(address, UriKind.Absolute, out iconAddress) &&
                                 iconAddress.AbsolutePath.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
-                                framesByUrl[address] = ReadIconFrames(address);
+                                iconFrames.GetOrAdd(address, ReadIconFrames);
                         });
                     foreach (var image in batch)
                     {
@@ -799,7 +878,7 @@ namespace GryOnlineMetadata
                             if (ico)
                             {
                                 List<Tuple<int, int>> frames;
-                                if (!framesByUrl.TryGetValue(iconUrl, out frames)) continue;
+                                if (!iconFrames.TryGetValue(iconUrl, out frames)) continue;
                                 if (!frames.Any(x => exact
                                     ? x.Item1 == minimumWidth && x.Item2 == minimumHeight
                                     : x.Item1 >= minimumWidth && x.Item2 >= minimumHeight)) continue;
@@ -817,12 +896,60 @@ namespace GryOnlineMetadata
                     }
                     if (batch.Count < 50 || matching.Count > 0) break;
                 }
-                return matching.OrderByDescending(x => Number(x, "score"))
+                var best = matching.OrderByDescending(x => Number(x, "score"))
                     .ThenByDescending(x => Number(x, "width") * Number(x, "height"))
                     .Select(x => String(x, "url")).FirstOrDefault();
+                if (best != null || requested == null) return best;
+
+                // No exact/minimum size exists: scan unfiltered pages for the
+                // nearest size, keeping the poster's requested aspect ratio.
+                var closest = new List<Dictionary<string, object>>();
+                for (var page = 0; page < 3; page++)
+                {
+                    List<Dictionary<string, object>> batch;
+                    if (!unfilteredPages.TryGetValue(page, out batch))
+                        batch = SteamGridData(path + "?limit=50&page=" + page);
+                    if (isIcon)
+                        Parallel.ForEach(batch, new ParallelOptions { MaxDegreeOfParallelism = 4 }, image =>
+                        {
+                            var address = String(image, "url");
+                            Uri iconAddress;
+                            if (Uri.TryCreate(address, UriKind.Absolute, out iconAddress) &&
+                                iconAddress.AbsolutePath.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
+                                iconFrames.GetOrAdd(address, ReadIconFrames);
+                        });
+                    foreach (var image in batch)
+                    {
+                        var address = String(image, "url");
+                        Uri imageUri;
+                        if (!Uri.TryCreate(address, UriKind.Absolute, out imageUri) || imageUri.Scheme != "https") continue;
+                        var width = Number(image, "width");
+                        var height = Number(image, "height");
+                        if (isIcon && imageUri.AbsolutePath.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
+                        {
+                            List<Tuple<int, int>> frames;
+                            if (!iconFrames.TryGetValue(address, out frames) || frames.Count == 0) continue;
+                            var nearest = frames.OrderBy(x => SizeDistance(x.Item1, x.Item2, minimumWidth, minimumHeight)).First();
+                            width = nearest.Item1;
+                            height = nearest.Item2;
+                            image["width"] = width;
+                            image["height"] = height;
+                        }
+                        if (width <= 0 || height <= 0) continue;
+                        if (isPoster && Math.Abs(width / height - (double)minimumWidth / minimumHeight) > 0.06) continue;
+                        closest.Add(image);
+                    }
+                    if (batch.Count < 50) break;
+                }
+                var fallback = closest.OrderBy(x => SizeDistance(Number(x, "width"), Number(x, "height"), minimumWidth, minimumHeight))
+                    .ThenByDescending(x => Number(x, "score")).FirstOrDefault();
+                if (fallback != null && isIcon) steamGridIconFallback = true;
+                return String(fallback, "url");
             }
             catch (WebException) { return null; }
         }
+        private static double SizeDistance(double width, double height, double requestedWidth, double requestedHeight)
+            => Math.Abs(width / requestedWidth - 1) + Math.Abs(height / requestedHeight - 1);
         private static double Number(Dictionary<string, object> item, string key)
         {
             double value;

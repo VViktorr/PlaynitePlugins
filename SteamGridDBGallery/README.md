@@ -41,3 +41,9 @@ W ustawieniach przy polu klucza SteamGridDB jest przycisk **Pobierz klucz API**,
 ## Automatyczne pobieranie i filtry osobne
 
 Wersja 1.9.0 pobiera okładkę, tło i ikonę także podczas automatycznego/zbiorczego pobierania metadanych Playnite, bez okna wyboru. Używa dokładnego dopasowania nazwy gry (również bez końcówki edycji) i najlepszego wyniku z osobnych filtrów dla okładek, teł i ikon. Przy braku dopasowania nie przypisuje grafiki. Jeśli filtr nie znajdzie obrazu na pierwszej stronie, sprawdza do pięciu następnych stron. W ręcznej edycji nadal wyświetla galerię. Dotychczasowy wspólny zestaw filtrów zostaje skopiowany do trzech zakładek przy pierwszym uruchomieniu nowej wersji. Wybierz SteamGridDB Gallery jako źródło pól Okładka, Tło i Ikona w ustawieniach metadanych Playnite.
+
+Wersja 1.9.1 rozszerza listę Dimensions w ustawieniach i w oknie galerii. Ikony mają teraz wybór od 16×16 do 1024×1024 px, zgodnie z GryOnlinePL. Dodano także rozmiary 720×1080 i 1080×1620 dla plakatów oraz 1920×1080, 2560×1440 i 3840×2160 dla teł. Obie listy korzystają z tych samych wartości, a filtr nadal wymaga dokładnych wymiarów. Wybranie rozmiaru bez dostępnych grafik może dać pustą listę.
+
+Wersja 1.9.2 przy automatycznym pobieraniu wybiera najbliższy rozmiar spośród sprawdzonych grafik, jeśli nie znalazła wymiarów dokładnie zgodnych z filtrem. Zachowuje pozostałe filtry oraz proporcje plakatów. Wybór ręczny nadal pokazuje wyłącznie grafiki zgodne z ustawionym filtrem Dimensions. Pliki bez znanych wymiarów nie są uwzględniane w awaryjnym dopasowaniu.
+
+Wersja 1.9.3 sprawdza trzy kategorie grafik równolegle również po wczytaniu pierwszej strony. Gdy pierwsza strona ma mniej niż 48 grafik, nie pyta o następne. Błąd odpowiedzi dla jednego rodzaju grafiki nie blokuje pozostałych kategorii. Galeria ręczna działa jak wcześniej.

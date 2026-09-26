@@ -1,5 +1,11 @@
 AddonId: SteamGridDBGallery_893e3841-75f7-4451-9e53-b0487cb98b60
 Packages:
+  - Version: 1.9.3
+    RequiredApiVersion: 6.17.0
+    ReleaseDate: 2026-09-26
+    PackageUrl: https://raw.githubusercontent.com/VViktorr/PlaynitePlugins/main/packages/SteamGridDBGallery_893e3841-75f7-4451-9e53-b0487cb98b60_1_9_3.pext
+    Changelog:
+      - Usprawniono automatyczne pobieranie grafik i obsługę filtrów rozmiaru.
   - Version: 1.9.0
     RequiredApiVersion: 6.17.0
     ReleaseDate: 2026-09-25

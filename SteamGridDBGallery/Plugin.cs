@@ -20,6 +20,18 @@ using Playnite.SDK.Plugins;
 
 namespace SteamGridDBGallery
 {
+    internal static class ArtworkDimensionOptions
+    {
+        internal static readonly string[] Covers = { "Any", "342x482", "600x900", "660x930",
+            "720x1080", "1080x1620", "460x215", "920x430", "512x512", "1024x1024" };
+        internal static readonly string[] Backgrounds = { "Any", "1600x650", "1920x620",
+            "3840x1240", "1920x1080", "2560x1440", "3840x2160" };
+        internal static readonly string[] Icons = { "Any", "16x16", "24x24", "32x32", "48x48",
+            "64x64", "96x96", "128x128", "192x192", "256x256", "512x512", "1024x1024" };
+        internal static string[] For(string kind) => kind == "icons" ? Icons :
+            kind == "heroes" ? Backgrounds : Covers;
+    }
+
     public sealed class GalleryPlugin : MetadataPlugin
     {
         private readonly GallerySettings settings;
@@ -167,10 +179,7 @@ namespace SteamGridDBGallery
         private static TabItem SettingsTab(string title, string property, string kind, GalleryText l)
         {
             var panel = new StackPanel { Margin = new Thickness(8) };
-            AddChoice(panel, "Dimensions", property + ".Dimensions", l, kind == "icons"
-                ? new[] { "Any", "256x256", "512x512", "1024x1024" }
-                : kind == "heroes" ? new[] { "Any", "1920x620", "1600x650", "3840x1240" }
-                : new[] { "Any", "1024x1024", "512x512", "342x482", "660x930", "460x215", "920x430", "600x900" });
+            AddChoice(panel, "Dimensions", property + ".Dimensions", l, ArtworkDimensionOptions.For(kind));
             AddChoice(panel, "Styles", property + ".Styles", l, kind == "icons"
                 ? new[] { "Any", "Official", "Custom" }
                 : kind == "heroes" ? new[] { "Any", "Official", "Custom", "Alternate", "Blurred" }
@@ -358,9 +367,9 @@ namespace SteamGridDBGallery
                     catch (WebException) { continue; }
                     if (!id.HasValue) continue;
                     if (matches.All(x => x.Item1 != id.Value)) matches.Add(Tuple.Create(id.Value, name));
-                    var coverTask = Task.Run(() => client.GetArtwork("grids", id.Value, name, 0, filters.Covers.Sort));
-                    var heroTask = Task.Run(() => client.GetArtwork("heroes", id.Value, name, 0, filters.Backgrounds.Sort));
-                    var iconTask = Task.Run(() => client.GetArtwork("icons", id.Value, name, 0, filters.Icons.Sort));
+                    var coverTask = Task.Run(() => SafeArtwork(client, "grids", id.Value, name, filters.Covers.Sort));
+                    var heroTask = Task.Run(() => SafeArtwork(client, "heroes", id.Value, name, filters.Backgrounds.Sort));
+                    var iconTask = Task.Run(() => SafeArtwork(client, "icons", id.Value, name, filters.Icons.Sort));
                     Task.WaitAll(coverTask, heroTask, iconTask);
                     covers.AddRange(coverTask.Result);
                     backgrounds.AddRange(heroTask.Result);
@@ -377,9 +386,9 @@ namespace SteamGridDBGallery
                     if (chosen != null && int.TryParse(chosen.Description, out chosenId) && chosenId > 0)
                     {
                         matches.Add(Tuple.Create(chosenId, chosen.Name));
-                        var coverTask = Task.Run(() => client.GetArtwork("grids", chosenId, chosen.Name, 0, filters.Covers.Sort));
-                        var heroTask = Task.Run(() => client.GetArtwork("heroes", chosenId, chosen.Name, 0, filters.Backgrounds.Sort));
-                        var iconTask = Task.Run(() => client.GetArtwork("icons", chosenId, chosen.Name, 0, filters.Icons.Sort));
+                        var coverTask = Task.Run(() => SafeArtwork(client, "grids", chosenId, chosen.Name, filters.Covers.Sort));
+                        var heroTask = Task.Run(() => SafeArtwork(client, "heroes", chosenId, chosen.Name, filters.Backgrounds.Sort));
+                        var iconTask = Task.Run(() => SafeArtwork(client, "icons", chosenId, chosen.Name, filters.Icons.Sort));
                         Task.WaitAll(coverTask, heroTask, iconTask);
                         covers.AddRange(coverTask.Result);
                         backgrounds.AddRange(heroTask.Result);
@@ -388,9 +397,13 @@ namespace SteamGridDBGallery
                 }
                 if (options.IsBackgroundDownload)
                 {
-                    cover = SelectAutomatic(client, matches, covers, "grids", filters.Covers)?.Url;
-                    background = SelectAutomatic(client, matches, backgrounds, "heroes", filters.Backgrounds)?.Url;
-                    icon = SelectAutomatic(client, matches, icons, "icons", filters.Icons)?.Url;
+                    var coverTask = Task.Run(() => SelectAutomaticSafe(client, matches, covers, "grids", filters.Covers));
+                    var backgroundTask = Task.Run(() => SelectAutomaticSafe(client, matches, backgrounds, "heroes", filters.Backgrounds));
+                    var iconTask = Task.Run(() => SelectAutomaticSafe(client, matches, icons, "icons", filters.Icons));
+                    Task.WaitAll(coverTask, backgroundTask, iconTask);
+                    cover = coverTask.Result?.Url;
+                    background = backgroundTask.Result?.Url;
+                    icon = iconTask.Result?.Url;
                     if (cover != null) AvailableFields.Add(MetadataField.CoverImage);
                     if (background != null) AvailableFields.Add(MetadataField.BackgroundImage);
                     if (icon != null) AvailableFields.Add(MetadataField.Icon);
@@ -431,18 +444,50 @@ namespace SteamGridDBGallery
         private static Artwork SelectAutomatic(SteamGridClient client, List<Tuple<int, string>> matches,
             List<Artwork> firstPage, string kind, GalleryFilters options)
         {
+            var scanned = new List<Artwork>(firstPage);
             var artwork = ArtworkGallery.Filter(firstPage, options).FirstOrDefault();
             if (artwork != null) return artwork;
             // A restrictive filter may have no match on the first page.
-            for (var page = 1; page < 6; page++)
+            for (var page = 1; page < 6 && scanned.Count >= 48; page++)
             {
                 var batch = new List<Artwork>();
                 foreach (var match in matches)
                     batch.AddRange(client.GetArtwork(kind, match.Item1, match.Item2, page, options.Sort));
+                scanned.AddRange(batch);
                 artwork = ArtworkGallery.Filter(batch, options).FirstOrDefault();
-                if (artwork != null || batch.Count < 48) return artwork;
+                if (artwork != null) return artwork;
+                if (batch.Count < 48) break;
             }
-            return null;
+            // Keep all other filters; relax only the dimension when no exact
+            // match exists anywhere in the scanned pages.
+            var dimensions = (options.Dimensions ?? "Any").Split('x');
+            int width, height;
+            if (dimensions.Length != 2 || !int.TryParse(dimensions[0], out width) ||
+                !int.TryParse(dimensions[1], out height) || width <= 0 || height <= 0)
+                return null;
+            var relaxed = options.Snapshot();
+            relaxed.Dimensions = "Any";
+            return ArtworkGallery.Filter(scanned, relaxed)
+                .Where(x => x.Width > 0 && x.Height > 0)
+                .Where(x => kind != "grids" || Math.Abs((double)x.Width / x.Height - (double)width / height) <= 0.06)
+                .OrderBy(x => Math.Abs((double)x.Width / width - 1) + Math.Abs((double)x.Height / height - 1))
+                .ThenByDescending(x => x.Score).FirstOrDefault();
+        }
+        private static Artwork SelectAutomaticSafe(SteamGridClient client, List<Tuple<int, string>> matches,
+            List<Artwork> firstPage, string kind, GalleryFilters options)
+        {
+            try { return SelectAutomatic(client, matches, firstPage, kind, options); }
+            catch (WebException) { return null; }
+            catch (InvalidOperationException) { return null; }
+            catch (ArgumentException) { return null; }
+        }
+        private static List<Artwork> SafeArtwork(SteamGridClient client, string kind, int id,
+            string title, string sort)
+        {
+            try { return client.GetArtwork(kind, id, title, 0, sort); }
+            catch (WebException) { return new List<Artwork>(); }
+            catch (InvalidOperationException) { return new List<Artwork>(); }
+            catch (ArgumentException) { return new List<Artwork>(); }
         }
         private static string WithoutEdition(string title)
         {
@@ -896,10 +941,8 @@ namespace SteamGridDBGallery
         }
         private static void AddTabFilters(Panel bar, string kind, GalleryFilters f, Action refresh, Action reload, GalleryText l)
         {
-            AddFilter(bar, "Dimensions", f.Dimensions, kind == "icons"
-                ? new[] { "Any", "256x256", "512x512", "1024x1024" }
-                : kind == "heroes" ? new[] { "Any", "1920x620", "1600x650", "3840x1240" }
-                : new[] { "Any", "1024x1024", "512x512", "342x482", "660x930", "460x215", "920x430", "600x900" }, x => f.Dimensions = x, refresh, l);
+            AddFilter(bar, "Dimensions", f.Dimensions, ArtworkDimensionOptions.For(kind),
+                x => f.Dimensions = x, refresh, l);
             AddFilter(bar, "Styles", f.Styles, kind == "icons"
                 ? new[] { "Any", "Official", "Custom" }
                 : kind == "heroes" ? new[] { "Any", "Official", "Custom", "Alternate", "Blurred" }

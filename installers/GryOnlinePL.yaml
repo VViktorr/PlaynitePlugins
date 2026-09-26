@@ -1,5 +1,11 @@
 AddonId: GryOnlineMetadata_7b963b1a-21e9-4a3b-a18c-49c74cf8d652
 Packages:
+  - Version: 1.2.13
+    RequiredApiVersion: 6.17.0
+    ReleaseDate: 2026-09-26
+    PackageUrl: https://raw.githubusercontent.com/VViktorr/PlaynitePlugins/main/packages/GryOnlineMetadata_7b963b1a-21e9-4a3b-a18c-49c74cf8d652_1_2_13.pext
+    Changelog:
+      - Usprawniono automatyczne wyszukiwanie i pobieranie metadanych oraz grafik.
   - Version: 1.2.5
     RequiredApiVersion: 6.17.0
     ReleaseDate: 2026-09-25
