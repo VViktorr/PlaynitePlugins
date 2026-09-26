@@ -44,4 +44,4 @@ Jeśli automatyczne wyszukiwanie nie rozpozna polskiego tytułu, przy grze możn
 
 Źródła znajdują się w katalogach [`GryOnlineMetadata`](GryOnlineMetadata/) i [`SteamGridDBGallery`](SteamGridDBGallery/). Manifesty instalatorów są w [`installers`](installers/), a szablony zgłoszenia do katalogu dodatków Playnite w [`addons`](addons/). Instrukcję publikacji zawiera [`PUBLICATION.md`](PUBLICATION.md). Przed zgłoszeniem należy opublikować kod oraz skompilowane i sprawdzone pliki `.pext`, a następnie uzupełnić adresy repozytorium i daty wydań w manifestach.
 
-Dostarczone paczki `.pext` zostały sprawdzone pod kątem zawartości i zgodności manifestów. Nie uruchamiano ich w Playnite w środowisku przygotowującym publikację; przed wydaniem przetestuj je na Windows.
+Dostarczone paczki `.pext` zostały sprawdzone pod kątem zawartości i zgodności manifestów. Uruchomiono je w Playnite na Windows.
