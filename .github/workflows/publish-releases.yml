@@ -1,0 +1,35 @@
+name: Publish plugin releases
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-releases.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish GryOnlinePL 1.2.13
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create gryonlinepl-v1.2.13 \
+            packages/GryOnlineMetadata_7b963b1a-21e9-4a3b-a18c-49c74cf8d652_1_2_13.pext \
+            --target "$GITHUB_SHA" \
+            --title "GryOnlinePL 1.2.13" \
+            --notes "Usprawniono automatyczne wyszukiwanie i pobieranie metadanych oraz grafik."
+      - name: Publish SteamGridDB Gallery 1.9.3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create steamgriddbgallery-v1.9.3 \
+            packages/SteamGridDBGallery_893e3841-75f7-4451-9e53-b0487cb98b60_1_9_3.pext \
+            --target "$GITHUB_SHA" \
+            --title "SteamGridDB Gallery 1.9.3" \
+            --notes "Usprawniono automatyczne pobieranie grafik i obsługę filtrów rozmiaru."
